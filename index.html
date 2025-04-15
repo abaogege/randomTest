@@ -56,7 +56,7 @@
     <div id="questionsContainer" style="margin: 20px"></div>
   </body>
   <script>
-    var data = [
+   var data = [
       {
         question:
           "1、关于大宗交易，以下表述错误的是（   ）。\nA.大宗交易是指单笔数额较大的证券买卖\nB.每个交易日15:00以后，上海证券交易所开始接受大宗交易\nC.证券交易所可以根据市场实际情况调整大宗交易的最低限额\nD.对于当天停牌的股票沪深交易所都不接受其大宗交易申请\n",
@@ -3271,7 +3271,9 @@
     ];
 
     function shuffle(array) {
-      return array.slice().sort(() => Math.random() - 0.5);
+      return array.map(function(item,index)  {
+        return {question:item.question,answer:item.answer,originalIndex:index}
+      }).sort(() => Math.random() - 0.5);
     }
 
     function generateSequentialQuestions() {
@@ -3352,7 +3354,7 @@
                 </div>
                 <div>
                     <button class="toggle-answer" data-index="${index}" style="margin-right:1rem;padding:0.5rem 1rem;">显示答案</button>
-                    <button class="copy-btn" data-index="${index}" style="padding:0.5rem 1rem;">复制</button>
+                    <button class="wrong-btn" data-index="${item.originalIndex}" style="padding:0.5rem 1rem;background:#dc3545;">加入错题集</button>
                 </div>
                 <div id="answer-${index}" class="answer" style="display:none;color:#28a745;margin-top:0.5rem;">
                     ${item.answer.replace(/\n/g, "<br>")}
@@ -3362,6 +3364,47 @@
         });
     }
 
+    function addToWrongQuestions(index) {
+      const wrongQuestions = new Set(JSON.parse(localStorage.getItem('wrongQuestions') || '[]'));
+      wrongQuestions.add(index);
+      localStorage.setItem('wrongQuestions', JSON.stringify([...wrongQuestions]));
+      event.target.closest('div[style^="margin-bottom"]').style.backgroundColor = '#ffebee';
+    }
+
+    function generateWrongQuestions() {
+      const wrongIndices = JSON.parse(localStorage.getItem('wrongQuestions') || '[]');
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+      
+      wrongIndices.forEach(index => {
+        const item = data[index];
+        const questionDiv = document.createElement('div');
+        questionDiv.style.marginBottom = '2rem';
+        questionDiv.style.backgroundColor = '#ffebee';
+        questionDiv.innerHTML = `
+          <h3>${index + 1}. ${item.question.replace(/\n/g, '<br>')}</h3>
+          <div class="options">
+            ${['A','B','C','D'].map(c => `
+              <label><input type="radio" name="q${index}" value="${c}"> ${c}</label>`).join(' ')}
+          </div>
+          <div>
+            <button class="toggle-answer" data-index="${index}" style="margin-right:1rem;">显示答案</button>
+            <button class="remove-wrong" data-index="${index}" style="padding:0.5rem 1rem;background:#ff5722;color:white;">移除错题</button>
+          </div>
+          <div id="answer-${index}" class="answer" style="display:none;">
+            ${item.answer.replace(/\n/g, '<br>')}
+          </div>
+        `;
+        container.appendChild(questionDiv);
+      });
+    }
+
+    function removeFromWrongQuestions(index) {
+      const wrongQuestions = new Set(JSON.parse(localStorage.getItem('wrongQuestions') || '[]'));
+      wrongQuestions.delete(index);
+      localStorage.setItem('wrongQuestions', JSON.stringify([...wrongQuestions]));
+      generateWrongQuestions(); // 重新生成错题列表
+    }
     document.addEventListener("click", (e) => {
       if (e.target.classList.contains("toggle-answer")) {
         const button = e.target;
@@ -3387,7 +3430,19 @@
           `${data[copyId].question}` + "\n" + `【答案】${data[copyId].answer}`
         );
       }
+      if (e.target.classList.contains('wrong-btn')) {
+        addToWrongQuestions(parseInt(e.target.dataset.index));
+      }
+      if (e.target.classList.contains('remove-wrong')) {
+        removeFromWrongQuestions(parseInt(e.target.dataset.index));
+      }
+      // 移除原有复制功能的事件处理
     });
+    const wrongBtn = `<button onclick="generateWrongQuestions()" 
+      style="padding:8px 16px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;margin-left:10px;">
+      错题集模式
+    </button>`;
+    document.querySelector('div[style^="margin: 20px"]').insertAdjacentHTML('beforeend', wrongBtn);
   </script>
 </html>
 <style>
